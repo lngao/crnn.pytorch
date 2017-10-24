@@ -11,12 +11,19 @@ from warpctc_pytorch import CTCLoss
 import os
 import utils
 import dataset
-
 import models.crnn as crnn
+import models.keys as key
+
+"""
+python crnn_main.py \
+--trainroot="/home/extend/code/crnn_pytrch/crnn.pytorch/dataset/data.lmdb" \
+--valroot="/home/extend/code/crnn_pytrch/crnn.pytorch/dataset/data.lmdb" \
+"""
+
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--trainroot', required=True, help='path to dataset')
-parser.add_argument('--valroot', required=True, help='path to dataset')
+parser.add_argument('--trainroot', default= "/home/extend/code/crnn_pytrch/crnn.pytorch/dataset/data.lmdb", help='path to dataset')
+parser.add_argument('--valroot', default= "/home/extend/code/crnn_pytrch/crnn.pytorch/dataset/data.lmdb", help='path to dataset')
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=2)
 parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
 parser.add_argument('--imgH', type=int, default=32, help='the height of the input image to network')
@@ -39,6 +46,7 @@ parser.add_argument('--adadelta', action='store_true', help='Whether to use adad
 parser.add_argument('--keep_ratio', action='store_true', help='whether to keep ratio for image resize')
 parser.add_argument('--random_sample', action='store_true', help='whether to sample the dataset with random sampler')
 opt = parser.parse_args()
+opt.alphabet = key.alphabet
 print(opt)
 
 if opt.experiment is None:
@@ -64,7 +72,7 @@ else:
     sampler = None
 train_loader = torch.utils.data.DataLoader(
     train_dataset, batch_size=opt.batchSize,
-    shuffle=True, sampler=sampler,
+    shuffle=False, sampler=sampler,
     num_workers=int(opt.workers),
     collate_fn=dataset.alignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio=opt.keep_ratio))
 test_dataset = dataset.lmdbDataset(
@@ -98,6 +106,7 @@ image = torch.FloatTensor(opt.batchSize, 3, opt.imgH, opt.imgH)
 text = torch.IntTensor(opt.batchSize * 5)
 length = torch.IntTensor(opt.batchSize)
 
+# transform from cpu to gpu
 if opt.cuda:
     crnn.cuda()
     crnn = torch.nn.DataParallel(crnn, device_ids=range(opt.ngpu))
@@ -192,6 +201,7 @@ for epoch in range(opt.niter):
     while i < len(train_loader):
         for p in crnn.parameters():
             p.requires_grad = True
+        #effect only on dropout or batchnorm
         crnn.train()
 
         cost = trainBatch(crnn, criterion, optimizer)
@@ -203,8 +213,9 @@ for epoch in range(opt.niter):
                   (epoch, opt.niter, i, len(train_loader), loss_avg.val()))
             loss_avg.reset()
 
-        if i % opt.valInterval == 0:
-            val(crnn, test_dataset, criterion)
+        print ("{} : loss {}".format(i, loss_avg.val()))
+        #if i % opt.valInterval == 0:
+        #    val(crnn, test_dataset, criterion)
 
         # do checkpointing
         if i % opt.saveInterval == 0:

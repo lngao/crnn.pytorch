@@ -22,14 +22,22 @@ class BidirectionalLSTM(nn.Module):
 
 class CRNN(nn.Module):
 
-    def __init__(self, imgH, nc, nclass, nh, n_rnn=2, leakyRelu=False):
+    def __init__(self, imgH, nc, nclass, nh, leakyRelu=False):
+        """
+        added by gln
+        :param imgH: input image height
+        :param nc: input image num (batch size)
+        :param nclass: target class num
+        :param nh: LSTM hidden num
+        :param leakyRelu: use leakyRelu or Relu
+        """
         super(CRNN, self).__init__()
         assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
 
-        ks = [3, 3, 3, 3, 3, 3, 2]
-        ps = [1, 1, 1, 1, 1, 1, 0]
-        ss = [1, 1, 1, 1, 1, 1, 1]
-        nm = [64, 128, 256, 256, 512, 512, 512]
+        ks = [3, 3, 3, 3, 3, 3, 2]              # added by gln kernel size
+        ps = [1, 1, 1, 1, 1, 1, 0]              # added by gln padding size
+        ss = [1, 1, 1, 1, 1, 1, 1]              # added by gln stride size
+        nm = [64, 128, 256, 256, 512, 512, 512] # added by gln num of maps
 
         cnn = nn.Sequential()
 
@@ -52,10 +60,14 @@ class CRNN(nn.Module):
         cnn.add_module('pooling{0}'.format(1), nn.MaxPool2d(2, 2))  # 128x8x32
         convRelu(2, True)
         convRelu(3)
+        # added by gln
+        # diff from the paper, use stride 2X1 instead of window 2X1
         cnn.add_module('pooling{0}'.format(2),
                        nn.MaxPool2d((2, 2), (2, 1), (0, 1)))  # 256x4x16
         convRelu(4, True)
         convRelu(5)
+        # added by gln
+        # diff from the paper, use stride 2X1 instead of window 2X1
         cnn.add_module('pooling{0}'.format(3),
                        nn.MaxPool2d((2, 2), (2, 1), (0, 1)))  # 512x2x16
         convRelu(6, True)  # 512x1x16
