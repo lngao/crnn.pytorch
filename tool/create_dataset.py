@@ -86,19 +86,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output_dataset_path",
-        default= "/home/extend/code/crnn_pytrch/crnn.pytorch/dataset/data.lmdb",
+        default= "../dataset/sub_dir_1.lmdb",
         help= "LMDB output path"
     )
 
     parser.add_argument(
         "--images_path",
-        default= "/home/gaolining/extend/data/crnn_image_data/",
+        default= "/data/gao_lining/train_data/sub_dir_0/",
         help= "images path"
     )
 
     parser.add_argument(
         "--labels_path",
-        default= "/home/gaolining/extend/data/crnn_label_data/",
+        default= "/data/gao_lining/train_data/sub_dir_0/",
         help="labels path"
     )
     args = parser.parse_args()

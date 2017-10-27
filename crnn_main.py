@@ -15,32 +15,30 @@ import models.crnn as crnn
 import models.keys as key
 
 """
-python crnn_main.py \
---trainroot="/home/extend/code/crnn_pytrch/crnn.pytorch/dataset/data.lmdb" \
---valroot="/home/extend/code/crnn_pytrch/crnn.pytorch/dataset/data.lmdb" \
+python crnn_main.py --trainroot="./dataset/icdar2011.lmdb" --valroot="./dataset/icdar2011_test.lmdb" --cuda --adadelta
 """
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--trainroot', default= "/home/extend/code/crnn_pytrch/crnn.pytorch/dataset/data.lmdb", help='path to dataset')
-parser.add_argument('--valroot', default= "/home/extend/code/crnn_pytrch/crnn.pytorch/dataset/data.lmdb", help='path to dataset')
+parser.add_argument('--trainroot', default= "./dataset/sub_dir_1.lmdb", help='path to dataset')
+parser.add_argument('--valroot', default= "./dataset/sub_dir_1.lmdb", help='path to dataset')
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=2)
-parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
+parser.add_argument('--batchSize', type=int, default=16, help='input batch size')
 parser.add_argument('--imgH', type=int, default=32, help='the height of the input image to network')
 parser.add_argument('--imgW', type=int, default=100, help='the width of the input image to network')
 parser.add_argument('--nh', type=int, default=256, help='size of the lstm hidden state')
-parser.add_argument('--niter', type=int, default=25, help='number of epochs to train for')
+parser.add_argument('--niter', type=int, default=10000, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.01, help='learning rate for Critic, default=0.00005')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
 parser.add_argument('--cuda', action='store_true', help='enables cuda')
 parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--crnn', default='', help="path to crnn (to continue training)")
-parser.add_argument('--alphabet', type=str, default='0123456789abcdefghijklmnopqrstuvwxyz')
+parser.add_argument('--alphabet', type=str, default="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ()'-.:!/&?")
 parser.add_argument('--experiment', default=None, help='Where to store samples and models')
-parser.add_argument('--displayInterval', type=int, default=500, help='Interval to be displayed')
+parser.add_argument('--displayInterval', type=int, default=10, help='Interval to be displayed')
 parser.add_argument('--n_test_disp', type=int, default=10, help='Number of samples to display when test')
-parser.add_argument('--valInterval', type=int, default=500, help='Interval to be displayed')
-parser.add_argument('--saveInterval', type=int, default=500, help='Interval to be displayed')
+parser.add_argument('--valInterval', type=int, default=80, help='Interval to be displayed')
+parser.add_argument('--saveInterval', type=int, default=50, help='Interval to be displayed')
 parser.add_argument('--adam', action='store_true', help='Whether to use adam (default is rmsprop)')
 parser.add_argument('--adadelta', action='store_true', help='Whether to use adadelta (default is rmsprop)')
 parser.add_argument('--keep_ratio', action='store_true', help='whether to keep ratio for image resize')
@@ -81,7 +79,7 @@ test_dataset = dataset.lmdbDataset(
 nclass = len(opt.alphabet) + 1
 nc = 1
 
-converter = utils.strLabelConverter(opt.alphabet)
+converter = utils.strLabelConverter(opt.alphabet,False)
 criterion = CTCLoss()
 
 
@@ -103,7 +101,7 @@ if opt.crnn != '':
 print(crnn)
 
 image = torch.FloatTensor(opt.batchSize, 3, opt.imgH, opt.imgH)
-text = torch.IntTensor(opt.batchSize * 5)
+text = torch.IntTensor(opt.batchSize * 10)
 length = torch.IntTensor(opt.batchSize)
 
 # transform from cpu to gpu
@@ -162,16 +160,16 @@ def val(net, dataset, criterion, max_iter=100):
         loss_avg.add(cost)
 
         _, preds = preds.max(2)
-        preds = preds.squeeze(2)
+        preds = preds.squeeze(1)
         preds = preds.transpose(1, 0).contiguous().view(-1)
         sim_preds = converter.decode(preds.data, preds_size.data, raw=False)
         for pred, target in zip(sim_preds, cpu_texts):
-            if pred == target.lower():
+            if pred.decode == target.decode('utf-8'):
                 n_correct += 1
 
     raw_preds = converter.decode(preds.data, preds_size.data, raw=True)[:opt.n_test_disp]
     for raw_pred, pred, gt in zip(raw_preds, sim_preds, cpu_texts):
-        print('%-20s => %-20s, gt: %-20s' % (raw_pred, pred, gt))
+        print('%-40s => %-40s, gt: %-40s' % (raw_pred, pred, gt.decode('utf-8')))
 
     accuracy = n_correct / float(max_iter * opt.batchSize)
     print('Test loss: %f, accuray: %f' % (loss_avg.val(), accuracy))
@@ -213,11 +211,11 @@ for epoch in range(opt.niter):
                   (epoch, opt.niter, i, len(train_loader), loss_avg.val()))
             loss_avg.reset()
 
-        print ("{} : loss {}".format(i, loss_avg.val()))
-        #if i % opt.valInterval == 0:
-        #    val(crnn, test_dataset, criterion)
+        #print ("{} : loss {}".format(i, loss_avg.val()))
+        if i % opt.valInterval == 0 and epoch %20==0:
+           val(crnn, test_dataset, criterion)
 
         # do checkpointing
-        if i % opt.saveInterval == 0:
+        if i % opt.saveInterval == 0 and epoch % 50 == 0:
             torch.save(
                 crnn.state_dict(), '{0}/netCRNN_{1}_{2}.pth'.format(opt.experiment, epoch, i))
