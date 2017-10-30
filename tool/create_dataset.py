@@ -86,19 +86,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output_dataset_path",
-        default= "../dataset/sub_dir_1.lmdb",
+        default= "../dataset/sub_dir_2.lmdb",
         help= "LMDB output path"
     )
 
     parser.add_argument(
         "--images_path",
-        default= "/data/gao_lining/train_data/sub_dir_0/",
+        default= "/data/gao_lining/train_data/sub_dir_1/",
         help= "images path"
     )
 
     parser.add_argument(
         "--labels_path",
-        default= "/data/gao_lining/train_data/sub_dir_0/",
+        default= "/data/gao_lining/train_data/sub_dir_1/",
         help="labels path"
     )
     args = parser.parse_args()

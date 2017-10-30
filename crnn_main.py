@@ -35,9 +35,9 @@ parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--crnn', default='', help="path to crnn (to continue training)")
 parser.add_argument('--alphabet', type=str, default="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ()'-.:!/&?")
 parser.add_argument('--experiment', default=None, help='Where to store samples and models')
-parser.add_argument('--displayInterval', type=int, default=10, help='Interval to be displayed')
+parser.add_argument('--displayInterval', type=int, default=100, help='Interval to be displayed')
 parser.add_argument('--n_test_disp', type=int, default=10, help='Number of samples to display when test')
-parser.add_argument('--valInterval', type=int, default=80, help='Interval to be displayed')
+parser.add_argument('--valInterval', type=int, default=800, help='Interval to be displayed')
 parser.add_argument('--saveInterval', type=int, default=50, help='Interval to be displayed')
 parser.add_argument('--adam', action='store_true', help='Whether to use adam (default is rmsprop)')
 parser.add_argument('--adadelta', action='store_true', help='Whether to use adadelta (default is rmsprop)')
@@ -74,7 +74,7 @@ train_loader = torch.utils.data.DataLoader(
     num_workers=int(opt.workers),
     collate_fn=dataset.alignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio=opt.keep_ratio))
 test_dataset = dataset.lmdbDataset(
-    root=opt.valroot, transform=dataset.resizeNormalize((100, 32)))
+    root=opt.valroot, transform=dataset.resizeNormalize((opt.imgW, opt.imgH)))
 
 nclass = len(opt.alphabet) + 1
 nc = 1
@@ -97,7 +97,17 @@ crnn = crnn.CRNN(opt.imgH, nc, nclass, opt.nh)
 crnn.apply(weights_init)
 if opt.crnn != '':
     print('loading pretrained model from %s' % opt.crnn)
-    crnn.load_state_dict(torch.load(opt.crnn))
+    #crnn.load_state_dict(torch.load(opt.crnn))
+    # original saved file with DataParallel
+    state_dict = torch.load(opt.crnn)
+    # create new OrderedDict that does not contain `module.`
+    from collections import OrderedDict
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+      name = k[7:] # remove `module.`
+      new_state_dict[name] = v
+    # load params
+    crnn.load_state_dict(new_state_dict)
 print(crnn)
 
 image = torch.FloatTensor(opt.batchSize, 3, opt.imgH, opt.imgH)
@@ -212,7 +222,7 @@ for epoch in range(opt.niter):
             loss_avg.reset()
 
         #print ("{} : loss {}".format(i, loss_avg.val()))
-        if i % opt.valInterval == 0 and epoch %20==0:
+        if i % opt.valInterval == 0 and epoch %10==0:
            val(crnn, test_dataset, criterion)
 
         # do checkpointing

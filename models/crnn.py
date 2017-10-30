@@ -38,7 +38,7 @@ class CRNN(nn.Module):
         ps = [1, 1, 1, 1, 1, 1, 0]              # added by gln padding size
         ss = [1, 1, 1, 1, 1, 1, 1]              # added by gln stride size
         nm = [64, 128, 256, 256, 512, 512, 512] # added by gln num of maps
-
+        #nm = [128, 256, 512, 512, 1024, 1024, 1024] # added by gln num of maps
         cnn = nn.Sequential()
 
         def convRelu(i, batchNormalization=False):
@@ -74,7 +74,7 @@ class CRNN(nn.Module):
 
         self.cnn = cnn
         self.rnn = nn.Sequential(
-            BidirectionalLSTM(512, nh, nh),
+            BidirectionalLSTM(nm[-1], nh, nh),
             BidirectionalLSTM(nh, nh, nclass))
 
     def forward(self, input):
